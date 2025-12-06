@@ -66,7 +66,7 @@ const AIChatAssistant: React.FC<AIChatAssistantProps> = ({ transactions, kpis, b
         setMessages(prev => [...prev, { 
             id: (Date.now() + 1).toString(), 
             role: 'model', 
-            text: "Errore di connessione: API Key mancante o servizio non disponibile." 
+            text: "Errore: API Key mancante. Verifica che la chiave sia configurata correttamente nell'ambiente (process.env.API_KEY)." 
         }]);
       }
     } catch (error) {
@@ -74,7 +74,7 @@ const AIChatAssistant: React.FC<AIChatAssistantProps> = ({ transactions, kpis, b
       setMessages(prev => [...prev, { 
         id: (Date.now() + 1).toString(), 
         role: 'model', 
-        text: "Si è verificato un errore durante la comunicazione con l'AI." 
+        text: "Si è verificato un errore di connessione con l'AI." 
       }]);
     } finally {
       setIsLoading(false);

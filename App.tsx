@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { LayoutDashboard, Wallet, TrendingUp, Building2, BarChart3, Target, ArrowDownUp } from 'lucide-react';
+import { LayoutDashboard, Wallet, TrendingUp, Building2, BarChart3, Target, ArrowDownUp, CalendarDays } from 'lucide-react';
 import TransactionForm from './components/TransactionForm';
 import Dashboard from './components/Dashboard';
 import ProjectDashboard from './components/ProjectDashboard';
@@ -9,13 +9,15 @@ import AIAdvisor from './components/AIAdvisor';
 import AIChatAssistant from './components/AIChatAssistant';
 import { Transaction, Category, TransactionType, ProjectBudget } from './types';
 import { calculateKPIs } from './utils/calculations';
-import { CATEGORY_LABELS } from './constants';
 
 const App: React.FC = () => {
   // Navigation State
   const [activeTab, setActiveTab] = useState<'dashboard' | 'projects' | 'budget' | 'transactions'>('dashboard');
+  
+  // Date Filter State
+  const [timeRange, setTimeRange] = useState<'ALL' | 'THIS_YEAR' | 'LAST_YEAR' | 'THIS_MONTH' | 'LAST_MONTH'>('ALL');
 
-  // Initial Sample Data updated with 'project' field
+  // Initial Sample Data
   const [transactions, setTransactions] = useState<Transaction[]>([
     // Claudio Campana
     { id: '1', date: '2023-10-15', description: 'Ricavi Commessa Claudio Campana', amount: 26650, type: TransactionType.REVENUE, category: Category.OTHER, project: 'Cantiere Campana' },
@@ -71,52 +73,103 @@ const App: React.FC = () => {
     });
   };
 
+  // Filter Transactions based on Date Range
+  const filteredTransactions = useMemo(() => {
+    if (timeRange === 'ALL') return transactions;
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+
+    return transactions.filter(t => {
+      const tDate = new Date(t.date);
+      const tYear = tDate.getFullYear();
+      const tMonth = tDate.getMonth();
+
+      if (timeRange === 'THIS_YEAR') return tYear === currentYear;
+      if (timeRange === 'LAST_YEAR') return tYear === currentYear - 1; // e.g. 2023 if now is 2024
+      
+      if (timeRange === 'THIS_MONTH') return tYear === currentYear && tMonth === currentMonth;
+      if (timeRange === 'LAST_MONTH') {
+        // Handle Jan -> Dec transition
+        const targetMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+        const targetYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+        return tYear === targetYear && tMonth === targetMonth;
+      }
+      return true;
+    });
+  }, [transactions, timeRange]);
+
   // Extract unique projects for suggestions
   const existingProjects = useMemo(() => {
     const projects = new Set(transactions.map(t => t.project).filter(p => !!p));
     return Array.from(projects) as string[];
   }, [transactions]);
 
-  const kpis = useMemo(() => calculateKPIs(transactions), [transactions]);
+  // Calculate KPIs on FILTERED transactions for Dashboard
+  const kpis = useMemo(() => calculateKPIs(filteredTransactions), [filteredTransactions]);
 
+  // For AI context, we might want full history or filtered. Filtered is better for specific questions, but full is better for general advice.
+  // Let's pass filtered to AI so it sees what user sees.
+  
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-20">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 shrink-0">
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">B</div>
-            <h1 className="text-xl font-bold text-slate-800 tracking-tight">Baccano & Partners <span className="text-slate-400 font-normal">Finance</span></h1>
+            <h1 className="text-xl font-bold text-slate-800 tracking-tight hidden md:block">Baccano & Partners <span className="text-slate-400 font-normal">Finance</span></h1>
           </div>
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg overflow-x-auto">
-            <button 
-                onClick={() => setActiveTab('dashboard')}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'dashboard' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-                <LayoutDashboard size={16} />
-                <span className="hidden sm:inline">Azienda</span>
-            </button>
-            <button 
-                onClick={() => setActiveTab('projects')}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'projects' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-                <Building2 size={16} />
-                <span className="hidden sm:inline">Cantieri</span>
-            </button>
-            <button 
-                onClick={() => setActiveTab('budget')}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'budget' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-                <Target size={16} />
-                <span className="hidden sm:inline">Budget</span>
-            </button>
-            <button 
-                onClick={() => setActiveTab('transactions')}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'transactions' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-                <ArrowDownUp size={16} />
-                <span className="hidden sm:inline">Movimenti</span>
-            </button>
+          
+          <div className="flex items-center gap-4 overflow-x-auto flex-1 justify-end">
+            {/* Date Filter */}
+            <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg">
+                <CalendarDays size={16} className="text-slate-500 ml-2" />
+                <select 
+                    value={timeRange}
+                    onChange={(e) => setTimeRange(e.target.value as any)}
+                    className="bg-transparent text-sm font-medium text-slate-700 outline-none p-1 pr-2"
+                >
+                    <option value="ALL">Tutto lo Storico</option>
+                    <option value="THIS_YEAR">Anno Corrente ({new Date().getFullYear()})</option>
+                    <option value="LAST_YEAR">Anno Scorso ({new Date().getFullYear() - 1})</option>
+                    <option value="THIS_MONTH">Questo Mese</option>
+                    <option value="LAST_MONTH">Mese Scorso</option>
+                </select>
+            </div>
+
+            {/* Navigation */}
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
+                <button 
+                    onClick={() => setActiveTab('dashboard')}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'dashboard' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                    <LayoutDashboard size={16} />
+                    <span className="hidden sm:inline">Azienda</span>
+                </button>
+                <button 
+                    onClick={() => setActiveTab('projects')}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'projects' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                    <Building2 size={16} />
+                    <span className="hidden sm:inline">Cantieri</span>
+                </button>
+                <button 
+                    onClick={() => setActiveTab('budget')}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'budget' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                    <Target size={16} />
+                    <span className="hidden sm:inline">Budget</span>
+                </button>
+                <button 
+                    onClick={() => setActiveTab('transactions')}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'transactions' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                    <ArrowDownUp size={16} />
+                    <span className="hidden sm:inline">Movimenti</span>
+                </button>
+            </div>
           </div>
         </div>
       </header>
@@ -128,17 +181,30 @@ const App: React.FC = () => {
            <div className="lg:col-span-2">
               {activeTab === 'dashboard' && (
                 <>
-                  <div className="flex items-center gap-2 mb-4">
-                    <BarChart3 className="text-indigo-600" />
-                    <h2 className="text-2xl font-bold text-slate-800">Panoramica Finanziaria</h2>
+                  <div className="flex items-center justify-between mb-4">
+                     <div className="flex items-center gap-2">
+                        <BarChart3 className="text-indigo-600" />
+                        <h2 className="text-2xl font-bold text-slate-800">Panoramica {timeRange === 'ALL' ? 'Generale' : 'Periodo Selezionato'}</h2>
+                     </div>
+                     <span className="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
+                        {filteredTransactions.length} Movimenti
+                     </span>
                   </div>
-                  <Dashboard transactions={transactions} />
+                  <Dashboard transactions={filteredTransactions} />
                 </>
               )}
-              {activeTab === 'projects' && <ProjectDashboard transactions={transactions} />}
+              {activeTab === 'projects' && (
+                 <>
+                    <div className="mb-4">
+                        <h2 className="text-2xl font-bold text-slate-800">Analisi Cantieri</h2>
+                        <p className="text-sm text-slate-500">Dati filtrati in base al periodo: {timeRange === 'ALL' ? 'Tutto' : timeRange}</p>
+                    </div>
+                    <ProjectDashboard transactions={filteredTransactions} />
+                 </>
+              )}
               {activeTab === 'budget' && (
                   <BudgetManager 
-                    transactions={transactions} 
+                    transactions={transactions} // Budget usually compares against ALL time, but users might prefer filtered? Standard is All time for project. Keeping ALL for now to compare vs total budget.
                     budgets={budgets} 
                     onUpdateBudget={handleUpdateBudget}
                     existingProjects={existingProjects} 
@@ -146,7 +212,7 @@ const App: React.FC = () => {
               )}
               {activeTab === 'transactions' && (
                 <TransactionList 
-                    transactions={transactions}
+                    transactions={filteredTransactions} // Filter list too
                     onDelete={deleteTransaction}
                     onUpdate={updateTransaction}
                     existingProjects={existingProjects}
@@ -155,17 +221,17 @@ const App: React.FC = () => {
            </div>
            
            <div className="space-y-6">
-              {/* AI Advisor now takes full transactions and budgets for Chat Context */}
-              <AIAdvisor kpis={kpis} transactions={transactions} budgets={budgets} />
+              {/* AI Advisor Context */}
+              <AIAdvisor kpis={kpis} transactions={filteredTransactions} budgets={budgets} />
               
-              {/* Mini List of Recent Transactions */}
+              {/* Mini List of Recent Transactions (Filtered) */}
               <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                 <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
                   <TrendingUp size={16} />
-                  Ultimi Movimenti
+                  Ultimi Movimenti (Periodo)
                 </h3>
                 <div className="space-y-3">
-                  {transactions.slice(-5).reverse().map(t => (
+                  {filteredTransactions.slice(-5).reverse().map(t => (
                     <div key={t.id} className="flex justify-between items-center text-sm pb-2 border-b border-slate-50 last:border-0">
                       <div className="flex-1 min-w-0 pr-2">
                         <div className="font-medium text-slate-700 truncate">{t.description}</div>
@@ -179,17 +245,17 @@ const App: React.FC = () => {
                       </div>
                     </div>
                   ))}
-                  {transactions.length === 0 && <p className="text-sm text-slate-400">Nessuna transazione.</p>}
+                  {filteredTransactions.length === 0 && <p className="text-sm text-slate-400">Nessuna transazione nel periodo.</p>}
                 </div>
               </div>
            </div>
         </div>
 
-        {/* Data Entry Section */}
-        <div className="mt-12">
+        {/* Data Entry Section - Always available */}
+        <div className="mt-12 pt-8 border-t border-slate-200">
            <div className="flex items-center gap-2 mb-6">
              <Wallet className="text-indigo-600" />
-             <h2 className="text-2xl font-bold text-slate-800">Gestione Movimenti</h2>
+             <h2 className="text-2xl font-bold text-slate-800">Aggiungi Movimento</h2>
            </div>
            <TransactionForm 
               onAddTransaction={addTransaction} 
@@ -201,7 +267,7 @@ const App: React.FC = () => {
       </main>
 
       {/* Floating AI Assistant - Always available */}
-      <AIChatAssistant transactions={transactions} kpis={kpis} budgets={budgets} />
+      <AIChatAssistant transactions={filteredTransactions} kpis={kpis} budgets={budgets} />
     </div>
   );
 };
