@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageSquare, X, Send, Bot, User } from 'lucide-react';
-import { Transaction, FinancialKPIs } from '../types';
+import { Transaction, FinancialKPIs, ProjectBudget } from '../types';
 import { createFinancialChat } from '../services/geminiService';
 import { Chat } from '@google/genai';
 
 interface AIChatAssistantProps {
   transactions: Transaction[];
   kpis: FinancialKPIs;
+  budgets: ProjectBudget[];
 }
 
 interface Message {
@@ -15,7 +16,7 @@ interface Message {
   text: string;
 }
 
-const AIChatAssistant: React.FC<AIChatAssistantProps> = ({ transactions, kpis }) => {
+const AIChatAssistant: React.FC<AIChatAssistantProps> = ({ transactions, kpis, budgets }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([
@@ -26,12 +27,12 @@ const AIChatAssistant: React.FC<AIChatAssistantProps> = ({ transactions, kpis })
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Initialize or Update Chat Context when opening or when data changes drastically
-  // Ideally, we re-init when opening to capture latest state.
   useEffect(() => {
-    if (isOpen && !chatSessionRef.current) {
-      chatSessionRef.current = createFinancialChat(kpis, transactions);
+    if (isOpen) {
+      // Always refresh context when data changes
+      chatSessionRef.current = createFinancialChat(kpis, transactions, budgets);
     }
-  }, [isOpen, kpis, transactions]);
+  }, [isOpen, kpis, transactions, budgets]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -41,9 +42,9 @@ const AIChatAssistant: React.FC<AIChatAssistantProps> = ({ transactions, kpis })
   const handleSend = async () => {
     if (!input.trim()) return;
     
-    // Re-initialize if null (shouldn't happen if useEffect works, but for safety)
+    // Re-initialize if needed
     if (!chatSessionRef.current) {
-        chatSessionRef.current = createFinancialChat(kpis, transactions);
+        chatSessionRef.current = createFinancialChat(kpis, transactions, budgets);
     }
 
     const userMsg: Message = { id: Date.now().toString(), role: 'user', text: input };

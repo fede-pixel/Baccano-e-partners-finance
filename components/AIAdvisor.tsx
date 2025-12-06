@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Sparkles, Send, Bot, User, Loader2 } from 'lucide-react';
-import { FinancialKPIs, Transaction } from '../types';
+import { FinancialKPIs, Transaction, ProjectBudget } from '../types';
 import { createFinancialChat } from '../services/geminiService';
 import { Chat } from '@google/genai';
 
 interface AIAdvisorProps {
   kpis: FinancialKPIs;
   transactions: Transaction[];
+  budgets: ProjectBudget[];
 }
 
 interface Message {
@@ -15,13 +16,13 @@ interface Message {
   text: string;
 }
 
-const AIAdvisor: React.FC<AIAdvisorProps> = ({ kpis, transactions }) => {
+const AIAdvisor: React.FC<AIAdvisorProps> = ({ kpis, transactions, budgets }) => {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([
     { 
       id: 'init', 
       role: 'model', 
-      text: 'Ciao! Sono il tuo CFO Virtuale. Analizzo i dati dei tuoi cantieri e della tua azienda in tempo reale. Chiedimi pure un consiglio o un dato specifico.' 
+      text: 'Ciao! Sono il tuo CFO Virtuale. Analizzo preventivi e consuntivi dei tuoi cantieri. Chiedimi pure un consiglio.' 
     }
   ]);
   const [isTyping, setIsTyping] = useState(false);
@@ -30,8 +31,8 @@ const AIAdvisor: React.FC<AIAdvisorProps> = ({ kpis, transactions }) => {
 
   // Initialize chat session
   useEffect(() => {
-    chatSessionRef.current = createFinancialChat(kpis, transactions);
-  }, [kpis, transactions]);
+    chatSessionRef.current = createFinancialChat(kpis, transactions, budgets);
+  }, [kpis, transactions, budgets]);
 
   const scrollToBottom = () => {
     if (scrollRef.current) {
@@ -47,7 +48,7 @@ const AIAdvisor: React.FC<AIAdvisorProps> = ({ kpis, transactions }) => {
     if (!input.trim()) return;
 
     if (!chatSessionRef.current) {
-         chatSessionRef.current = createFinancialChat(kpis, transactions);
+         chatSessionRef.current = createFinancialChat(kpis, transactions, budgets);
     }
 
     const userText = input;

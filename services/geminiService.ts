@@ -1,5 +1,5 @@
 import { GoogleGenAI, Chat } from "@google/genai";
-import { FinancialKPIs, Transaction, Category } from "../types";
+import { FinancialKPIs, Transaction, Category, ProjectBudget } from "../types";
 import { formatCurrency } from "../utils/calculations";
 import { CATEGORY_LABELS } from "../constants";
 
@@ -48,7 +48,8 @@ export const getFinancialAdvice = async (
 
 export const createFinancialChat = (
   kpis: FinancialKPIs,
-  transactions: Transaction[]
+  transactions: Transaction[],
+  budgets?: ProjectBudget[]
 ): Chat | null => {
   if (!process.env.API_KEY) return null;
 
@@ -59,6 +60,15 @@ export const createFinancialChat = (
     .slice(0, 300) // Increased limit slightly
     .map(t => `- ${t.date.split('T')[0]}: ${t.description} | ${formatCurrency(t.amount)} | ${t.type} | Cat: ${CATEGORY_LABELS[t.category]} | Progetto: ${t.project || 'Generale'}`)
     .join('\n');
+
+  let budgetContext = "";
+  if (budgets && budgets.length > 0) {
+      budgetContext = "CONFRONTO PREVENTIVO (BUDGET) vs REALE:\n" + budgets.map(b => 
+          `- Cantiere "${b.projectName}": Preventivo Ricavi ${formatCurrency(b.budgetRevenue)}, Budget Costi ${formatCurrency(b.budgetCost)}.`
+      ).join('\n');
+  } else {
+      budgetContext = "Non sono stati impostati budget preventivi per i cantieri.";
+  }
 
   const contextData = `
     DATI AZIENDALI "Baccano & Partners SRLS":
@@ -71,6 +81,8 @@ export const createFinancialChat = (
     - EBITDA (MOL): ${formatCurrency(kpis.ebitda)}
     - Utile Netto (Stima): ${formatCurrency(kpis.netIncome)}
     - Tasse Stimate: ${formatCurrency(kpis.taxes)}
+
+    ${budgetContext}
     
     ULTIME TRANSAZIONI (Con dettaglio Cantiere/Progetto):
     ${transactionsList}
@@ -80,16 +92,16 @@ export const createFinancialChat = (
     model: 'gemini-2.5-flash',
     config: {
       systemInstruction: `Sei l'Assistente AI Intelligente e CFO di "Baccano & Partners SRLS".
-      Hai accesso a tutti i movimenti finanziari, inclusi i dettagli sui singoli cantieri/progetti.
+      Hai accesso a tutti i movimenti finanziari, e soprattutto ai BUDGET (Preventivi) dei cantieri.
 
       Ecco i dati aggiornati a cui hai accesso:
       ${contextData}
 
       Regole:
       1. Rispondi sempre in Italiano.
-      2. Sei in grado di analizzare la profittabilità dei singoli cantieri se richiesto.
-      3. Mantieni un tono professionale, proattivo e di supporto al business.
-      4. Se ti chiedono un calcolo specifico (es. "quanto abbiamo guadagnato sul cantiere Rossi?"), fallo sommando i ricavi e sottraendo i costi di quel progetto specifico dai dati forniti.
+      2. Quando ti chiedono come va un cantiere, controlla se sta rispettando il budget di costo. Se ha speso più del budget, segnalalo come criticità.
+      3. Analizza se il fatturato reale è in linea con il preventivo.
+      4. Sii proattivo: se vedi un cantiere che ha costi alti ma ricavi bassi rispetto al preventivo, suggerisci di controllare i SAL (Stati Avanzamento Lavori).
       `
     }
   });

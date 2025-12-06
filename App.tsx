@@ -1,17 +1,19 @@
 import React, { useState, useMemo } from 'react';
-import { LayoutDashboard, Wallet, TrendingUp, Building2, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, Wallet, TrendingUp, Building2, BarChart3, Target, ArrowDownUp } from 'lucide-react';
 import TransactionForm from './components/TransactionForm';
 import Dashboard from './components/Dashboard';
 import ProjectDashboard from './components/ProjectDashboard';
+import BudgetManager from './components/BudgetManager';
+import TransactionList from './components/TransactionList';
 import AIAdvisor from './components/AIAdvisor';
 import AIChatAssistant from './components/AIChatAssistant';
-import { Transaction, Category, TransactionType } from './types';
+import { Transaction, Category, TransactionType, ProjectBudget } from './types';
 import { calculateKPIs } from './utils/calculations';
 import { CATEGORY_LABELS } from './constants';
 
 const App: React.FC = () => {
   // Navigation State
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'projects'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'projects' | 'budget' | 'transactions'>('dashboard');
 
   // Initial Sample Data updated with 'project' field
   const [transactions, setTransactions] = useState<Transaction[]>([
@@ -34,34 +36,45 @@ const App: React.FC = () => {
     { id: '8', date: '2023-12-20', description: 'Costi Architetti Esterni', amount: 2000, type: TransactionType.COST, category: Category.HR, project: 'Spese Generali' },
   ]);
 
+  // Sample Budgets
+  const [budgets, setBudgets] = useState<ProjectBudget[]>([
+    { projectName: 'Cantiere Campana', budgetRevenue: 28000, budgetCost: 20000 },
+    { projectName: 'Cantiere Luogo', budgetRevenue: 12000, budgetCost: 8000 },
+    { projectName: 'Progetto Silvia', budgetRevenue: 32000, budgetCost: 18000 }
+  ]);
+
   const addTransaction = (t: Transaction) => {
     setTransactions(prev => [...prev, t]);
+  };
+
+  const updateTransaction = (updatedT: Transaction) => {
+    setTransactions(prev => prev.map(t => t.id === updatedT.id ? updatedT : t));
+  };
+
+  const deleteTransaction = (id: string) => {
+    setTransactions(prev => prev.filter(t => t.id !== id));
   };
 
   const handleBulkUpload = (newTransactions: Transaction[]) => {
     setTransactions(prev => [...prev, ...newTransactions]);
   };
 
+  const handleUpdateBudget = (newBudget: ProjectBudget) => {
+    setBudgets(prev => {
+        const existing = prev.findIndex(b => b.projectName === newBudget.projectName);
+        if (existing >= 0) {
+            const updated = [...prev];
+            updated[existing] = newBudget;
+            return updated;
+        }
+        return [...prev, newBudget];
+    });
+  };
+
   // Extract unique projects for suggestions
   const existingProjects = useMemo(() => {
     const projects = new Set(transactions.map(t => t.project).filter(p => !!p));
     return Array.from(projects) as string[];
-  }, [transactions]);
-
-  // Prepare data for AI Advisor (Top 3 Costs) - Kept for reference but not passed to AIAdvisor
-  const topCosts = useMemo(() => {
-    const costMap: Record<string, number> = {};
-    transactions
-      .filter(t => t.type === TransactionType.COST)
-      .forEach(t => {
-        const label = CATEGORY_LABELS[t.category];
-        costMap[label] = (costMap[label] || 0) + t.amount;
-      });
-    
-    return Object.entries(costMap)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 3);
   }, [transactions]);
 
   const kpis = useMemo(() => calculateKPIs(transactions), [transactions]);
@@ -75,7 +88,7 @@ const App: React.FC = () => {
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">B</div>
             <h1 className="text-xl font-bold text-slate-800 tracking-tight">Baccano & Partners <span className="text-slate-400 font-normal">Finance</span></h1>
           </div>
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg overflow-x-auto">
             <button 
                 onClick={() => setActiveTab('dashboard')}
                 className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'dashboard' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
@@ -90,6 +103,20 @@ const App: React.FC = () => {
                 <Building2 size={16} />
                 <span className="hidden sm:inline">Cantieri</span>
             </button>
+            <button 
+                onClick={() => setActiveTab('budget')}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'budget' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+                <Target size={16} />
+                <span className="hidden sm:inline">Budget</span>
+            </button>
+            <button 
+                onClick={() => setActiveTab('transactions')}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'transactions' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+                <ArrowDownUp size={16} />
+                <span className="hidden sm:inline">Movimenti</span>
+            </button>
           </div>
         </div>
       </header>
@@ -99,7 +126,7 @@ const App: React.FC = () => {
         {/* Top Section: AI & Summary */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
            <div className="lg:col-span-2">
-              {activeTab === 'dashboard' ? (
+              {activeTab === 'dashboard' && (
                 <>
                   <div className="flex items-center gap-2 mb-4">
                     <BarChart3 className="text-indigo-600" />
@@ -107,14 +134,29 @@ const App: React.FC = () => {
                   </div>
                   <Dashboard transactions={transactions} />
                 </>
-              ) : (
-                <ProjectDashboard transactions={transactions} />
+              )}
+              {activeTab === 'projects' && <ProjectDashboard transactions={transactions} />}
+              {activeTab === 'budget' && (
+                  <BudgetManager 
+                    transactions={transactions} 
+                    budgets={budgets} 
+                    onUpdateBudget={handleUpdateBudget}
+                    existingProjects={existingProjects} 
+                  />
+              )}
+              {activeTab === 'transactions' && (
+                <TransactionList 
+                    transactions={transactions}
+                    onDelete={deleteTransaction}
+                    onUpdate={updateTransaction}
+                    existingProjects={existingProjects}
+                />
               )}
            </div>
            
            <div className="space-y-6">
-              {/* AI Advisor now takes full transactions for Chat Context */}
-              <AIAdvisor kpis={kpis} transactions={transactions} />
+              {/* AI Advisor now takes full transactions and budgets for Chat Context */}
+              <AIAdvisor kpis={kpis} transactions={transactions} budgets={budgets} />
               
               {/* Mini List of Recent Transactions */}
               <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
@@ -159,7 +201,7 @@ const App: React.FC = () => {
       </main>
 
       {/* Floating AI Assistant - Always available */}
-      <AIChatAssistant transactions={transactions} kpis={kpis} />
+      <AIChatAssistant transactions={transactions} kpis={kpis} budgets={budgets} />
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Plus, Upload, FileText, Check, HardHat } from 'lucide-react';
+import { Plus, Upload, FileText, Calendar, HardHat } from 'lucide-react';
 import { Transaction, TransactionType, Category } from '../types';
 import { CATEGORY_LABELS } from '../constants';
 
@@ -10,6 +10,7 @@ interface TransactionFormProps {
 }
 
 const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransaction, onBulkUpload, existingProjects }) => {
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [type, setType] = useState<TransactionType>(TransactionType.COST);
@@ -19,11 +20,11 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransaction, onB
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || !description) return;
+    if (!amount || !description || !date) return;
 
     const newTransaction: Transaction = {
       id: Date.now().toString(),
-      date: new Date().toISOString(),
+      date: new Date(date).toISOString(),
       amount: parseFloat(amount),
       description,
       type,
@@ -34,7 +35,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransaction, onB
     onAddTransaction(newTransaction);
     setAmount('');
     setDescription('');
-    // We keep the project selected for easier data entry of multiple items for same site
+    // We keep date and project for easier consecutive entry
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -111,6 +112,16 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransaction, onB
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
         <div className="md:col-span-2">
+          <label className="block text-xs font-medium text-slate-500 mb-1">Data</label>
+          <input 
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+          />
+        </div>
+
+        <div className="md:col-span-2">
           <label className="block text-xs font-medium text-slate-500 mb-1">Tipo</label>
           <select 
             value={type}
@@ -154,7 +165,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransaction, onB
           </div>
         )}
 
-        <div className={type === TransactionType.REVENUE ? "md:col-span-5" : "md:col-span-3"}>
+        <div className={type === TransactionType.REVENUE ? "md:col-span-3" : "md:col-span-3"}>
           <label className="block text-xs font-medium text-slate-500 mb-1">Descrizione</label>
           <input 
             type="text" 

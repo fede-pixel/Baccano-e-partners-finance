@@ -21,6 +21,12 @@ export interface Transaction {
   project?: string; // New field for identifying the construction site/project
 }
 
+export interface ProjectBudget {
+  projectName: string;
+  budgetRevenue: number; // Preventivo al cliente
+  budgetCost: number; // Stima costi totali
+}
+
 export interface FinancialKPIs {
   revenue: number;
   cogs: number; // Cost of Goods Sold (Costi diretti cantiere)
