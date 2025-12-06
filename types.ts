@@ -18,6 +18,7 @@ export interface Transaction {
   amount: number;
   type: TransactionType;
   category: Category;
+  project?: string; // New field for identifying the construction site/project
 }
 
 export interface FinancialKPIs {
@@ -40,4 +41,12 @@ export interface KPIInfo {
   percentage?: boolean;
   description: string;
   color?: string;
+}
+
+export interface ProjectStats {
+  name: string;
+  revenue: number;
+  costs: number;
+  margin: number;
+  marginPercent: number;
 }

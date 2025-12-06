@@ -1,6 +1,7 @@
-import { GoogleGenAI } from "@google/genai";
-import { FinancialKPIs, Transaction } from "../types";
+import { GoogleGenAI, Chat } from "@google/genai";
+import { FinancialKPIs, Transaction, Category } from "../types";
 import { formatCurrency } from "../utils/calculations";
+import { CATEGORY_LABELS } from "../constants";
 
 export const getFinancialAdvice = async (
   kpis: FinancialKPIs,
@@ -43,4 +44,53 @@ export const getFinancialAdvice = async (
     console.error("Gemini Error:", error);
     return "Si è verificato un errore durante l'analisi dei dati.";
   }
+};
+
+export const createFinancialChat = (
+  kpis: FinancialKPIs,
+  transactions: Transaction[]
+): Chat | null => {
+  if (!process.env.API_KEY) return null;
+
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+  // Format data for the AI Context - Including Project Names
+  const transactionsList = transactions
+    .slice(0, 300) // Increased limit slightly
+    .map(t => `- ${t.date.split('T')[0]}: ${t.description} | ${formatCurrency(t.amount)} | ${t.type} | Cat: ${CATEGORY_LABELS[t.category]} | Progetto: ${t.project || 'Generale'}`)
+    .join('\n');
+
+  const contextData = `
+    DATI AZIENDALI "Baccano & Partners SRLS":
+    
+    KPI ATTUALI AZIENDALI:
+    - Fatturato Totale: ${formatCurrency(kpis.revenue)}
+    - Costi Diretti (Cantieri): ${formatCurrency(kpis.cogs)}
+    - Margine Lordo: ${formatCurrency(kpis.grossMargin)}
+    - Spese Operative (Mkt, HR, Fissi): ${formatCurrency(kpis.opex)}
+    - EBITDA (MOL): ${formatCurrency(kpis.ebitda)}
+    - Utile Netto (Stima): ${formatCurrency(kpis.netIncome)}
+    - Tasse Stimate: ${formatCurrency(kpis.taxes)}
+    
+    ULTIME TRANSAZIONI (Con dettaglio Cantiere/Progetto):
+    ${transactionsList}
+  `;
+
+  return ai.chats.create({
+    model: 'gemini-2.5-flash',
+    config: {
+      systemInstruction: `Sei l'Assistente AI Intelligente e CFO di "Baccano & Partners SRLS".
+      Hai accesso a tutti i movimenti finanziari, inclusi i dettagli sui singoli cantieri/progetti.
+
+      Ecco i dati aggiornati a cui hai accesso:
+      ${contextData}
+
+      Regole:
+      1. Rispondi sempre in Italiano.
+      2. Sei in grado di analizzare la profittabilità dei singoli cantieri se richiesto.
+      3. Mantieni un tono professionale, proattivo e di supporto al business.
+      4. Se ti chiedono un calcolo specifico (es. "quanto abbiamo guadagnato sul cantiere Rossi?"), fallo sommando i ricavi e sottraendo i costi di quel progetto specifico dai dati forniti.
+      `
+    }
+  });
 };

@@ -1,18 +1,20 @@
 import React, { useState, useRef } from 'react';
-import { Plus, Upload, FileText, Check } from 'lucide-react';
+import { Plus, Upload, FileText, Check, HardHat } from 'lucide-react';
 import { Transaction, TransactionType, Category } from '../types';
 import { CATEGORY_LABELS } from '../constants';
 
 interface TransactionFormProps {
   onAddTransaction: (t: Transaction) => void;
   onBulkUpload: (t: Transaction[]) => void;
+  existingProjects: string[];
 }
 
-const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransaction, onBulkUpload }) => {
+const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransaction, onBulkUpload, existingProjects }) => {
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [type, setType] = useState<TransactionType>(TransactionType.COST);
   const [category, setCategory] = useState<Category>(Category.CONSTRUCTION);
+  const [project, setProject] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -25,12 +27,14 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransaction, onB
       amount: parseFloat(amount),
       description,
       type,
-      category: type === TransactionType.REVENUE ? Category.OTHER : category // Simplify revenue category
+      category: type === TransactionType.REVENUE ? Category.OTHER : category,
+      project: project.trim() || undefined
     };
 
     onAddTransaction(newTransaction);
     setAmount('');
     setDescription('');
+    // We keep the project selected for easier data entry of multiple items for same site
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -40,7 +44,6 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransaction, onB
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target?.result as string;
-      // Simple CSV parser assuming: Date,Description,Amount,Type(REVENUE|COST),Category
       const lines = text.split('\n');
       const transactions: Transaction[] = [];
       
@@ -50,8 +53,8 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransaction, onB
         if (cols.length >= 3) {
            const typeStr = cols[3]?.trim().toUpperCase();
            const catStr = cols[4]?.trim().toUpperCase();
+           const projStr = cols[5]?.trim(); // Assuming column 5 is project
            
-           // Basic mapping logic
            let tType = TransactionType.COST;
            if (typeStr === 'REVENUE' || typeStr === 'RICAVO') tType = TransactionType.REVENUE;
 
@@ -68,7 +71,8 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransaction, onB
                description: cols[1] || 'Imported',
                amount: parseFloat(cols[2]),
                type: tType,
-               category: tCat
+               category: tCat,
+               project: projStr || undefined
              });
            }
         }
@@ -118,8 +122,25 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransaction, onB
           </select>
         </div>
 
+        <div className="md:col-span-3">
+          <label className="block text-xs font-medium text-slate-500 mb-1 flex items-center gap-1">
+            <HardHat size={12}/> Cantiere / Progetto
+          </label>
+          <input 
+            list="projects-list"
+            type="text"
+            value={project}
+            onChange={(e) => setProject(e.target.value)}
+            placeholder="Generale (nessuno)"
+            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+          />
+          <datalist id="projects-list">
+            {existingProjects.map(p => <option key={p} value={p} />)}
+          </datalist>
+        </div>
+
         {type === TransactionType.COST && (
-          <div className="md:col-span-3">
+          <div className="md:col-span-2">
             <label className="block text-xs font-medium text-slate-500 mb-1">Categoria</label>
             <select 
               value={category}
@@ -133,13 +154,13 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransaction, onB
           </div>
         )}
 
-        <div className={type === TransactionType.REVENUE ? "md:col-span-6" : "md:col-span-3"}>
+        <div className={type === TransactionType.REVENUE ? "md:col-span-5" : "md:col-span-3"}>
           <label className="block text-xs font-medium text-slate-500 mb-1">Descrizione</label>
           <input 
             type="text" 
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Es. Acquisto Cemento..."
+            placeholder="Es. Acconto lavori..."
             className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
           />
         </div>
@@ -156,14 +177,14 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransaction, onB
           />
         </div>
 
-        <div className="md:col-span-2">
-          <button 
-            type="submit"
-            className="w-full flex justify-center items-center gap-2 p-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors text-sm"
-          >
-            <Plus size={18} />
-            Aggiungi
-          </button>
+        <div className="md:col-span-12 lg:col-span-12 flex justify-end">
+            <button 
+              type="submit"
+              className="flex justify-center items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors text-sm"
+            >
+              <Plus size={18} />
+              Aggiungi Transazione
+            </button>
         </div>
       </form>
     </div>

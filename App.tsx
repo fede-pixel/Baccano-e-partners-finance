@@ -1,32 +1,37 @@
 import React, { useState, useMemo } from 'react';
-import { LayoutDashboard, Wallet, TrendingUp } from 'lucide-react';
+import { LayoutDashboard, Wallet, TrendingUp, Building2, BarChart3 } from 'lucide-react';
 import TransactionForm from './components/TransactionForm';
 import Dashboard from './components/Dashboard';
+import ProjectDashboard from './components/ProjectDashboard';
 import AIAdvisor from './components/AIAdvisor';
+import AIChatAssistant from './components/AIChatAssistant';
 import { Transaction, Category, TransactionType } from './types';
 import { calculateKPIs } from './utils/calculations';
 import { CATEGORY_LABELS } from './constants';
 
 const App: React.FC = () => {
-  // Initial Sample Data based on user input (October - Today)
+  // Navigation State
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'projects'>('dashboard');
+
+  // Initial Sample Data updated with 'project' field
   const [transactions, setTransactions] = useState<Transaction[]>([
     // Claudio Campana
-    { id: '1', date: '2023-10-15', description: 'Ricavi Commessa Claudio Campana', amount: 26650, type: TransactionType.REVENUE, category: Category.OTHER },
-    { id: '2', date: '2023-10-18', description: 'Costi Cantiere Claudio Campana', amount: 21150, type: TransactionType.COST, category: Category.CONSTRUCTION },
+    { id: '1', date: '2023-10-15', description: 'Ricavi Commessa Claudio Campana', amount: 26650, type: TransactionType.REVENUE, category: Category.OTHER, project: 'Cantiere Campana' },
+    { id: '2', date: '2023-10-18', description: 'Costi Cantiere Claudio Campana', amount: 21150, type: TransactionType.COST, category: Category.CONSTRUCTION, project: 'Cantiere Campana' },
     
     // Stefano Luogo
-    { id: '3', date: '2023-11-05', description: 'Ricavi Commessa Stefano Luogo', amount: 8000, type: TransactionType.REVENUE, category: Category.OTHER },
+    { id: '3', date: '2023-11-05', description: 'Ricavi Commessa Stefano Luogo', amount: 8000, type: TransactionType.REVENUE, category: Category.OTHER, project: 'Cantiere Luogo' },
     
     // Angelo & Chiara
-    { id: '4', date: '2023-11-20', description: 'Ricavi Commessa Angelo & Chiara', amount: 7000, type: TransactionType.REVENUE, category: Category.OTHER },
-    { id: '5', date: '2023-11-25', description: 'Costi Materiali Angelo & Chiara', amount: 1100, type: TransactionType.COST, category: Category.CONSTRUCTION },
+    { id: '4', date: '2023-11-20', description: 'Ricavi Commessa Angelo & Chiara', amount: 7000, type: TransactionType.REVENUE, category: Category.OTHER, project: 'Ristrutturazione Angelo & Chiara' },
+    { id: '5', date: '2023-11-25', description: 'Costi Materiali Angelo & Chiara', amount: 1100, type: TransactionType.COST, category: Category.CONSTRUCTION, project: 'Ristrutturazione Angelo & Chiara' },
     
     // Silvia
-    { id: '6', date: '2023-12-10', description: 'Ricavi Commessa Silvia', amount: 30500, type: TransactionType.REVENUE, category: Category.OTHER },
-    { id: '7', date: '2023-12-15', description: 'Costi Ristrutturazione Silvia', amount: 14895, type: TransactionType.COST, category: Category.CONSTRUCTION },
+    { id: '6', date: '2023-12-10', description: 'Ricavi Commessa Silvia', amount: 30500, type: TransactionType.REVENUE, category: Category.OTHER, project: 'Progetto Silvia' },
+    { id: '7', date: '2023-12-15', description: 'Costi Ristrutturazione Silvia', amount: 14895, type: TransactionType.COST, category: Category.CONSTRUCTION, project: 'Progetto Silvia' },
 
-    // Architetti Esterni
-    { id: '8', date: '2023-12-20', description: 'Costi Architetti Esterni', amount: 2000, type: TransactionType.COST, category: Category.HR },
+    // Architetti Esterni (Spesa Generale o specifica)
+    { id: '8', date: '2023-12-20', description: 'Costi Architetti Esterni', amount: 2000, type: TransactionType.COST, category: Category.HR, project: 'Spese Generali' },
   ]);
 
   const addTransaction = (t: Transaction) => {
@@ -37,7 +42,13 @@ const App: React.FC = () => {
     setTransactions(prev => [...prev, ...newTransactions]);
   };
 
-  // Prepare data for AI Advisor (Top 3 Costs)
+  // Extract unique projects for suggestions
+  const existingProjects = useMemo(() => {
+    const projects = new Set(transactions.map(t => t.project).filter(p => !!p));
+    return Array.from(projects) as string[];
+  }, [transactions]);
+
+  // Prepare data for AI Advisor (Top 3 Costs) - Kept for reference but not passed to AIAdvisor
   const topCosts = useMemo(() => {
     const costMap: Record<string, number> = {};
     transactions
@@ -64,7 +75,22 @@ const App: React.FC = () => {
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">B</div>
             <h1 className="text-xl font-bold text-slate-800 tracking-tight">Baccano & Partners <span className="text-slate-400 font-normal">Finance</span></h1>
           </div>
-          <div className="text-sm text-slate-500 hidden sm:block">Controllo di Gestione SRLS</div>
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
+            <button 
+                onClick={() => setActiveTab('dashboard')}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'dashboard' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+                <LayoutDashboard size={16} />
+                <span className="hidden sm:inline">Azienda</span>
+            </button>
+            <button 
+                onClick={() => setActiveTab('projects')}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'projects' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+                <Building2 size={16} />
+                <span className="hidden sm:inline">Cantieri</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -73,30 +99,40 @@ const App: React.FC = () => {
         {/* Top Section: AI & Summary */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
            <div className="lg:col-span-2">
-              <div className="flex items-center gap-2 mb-4">
-                <LayoutDashboard className="text-indigo-600" />
-                <h2 className="text-2xl font-bold text-slate-800">Panoramica Finanziaria</h2>
-              </div>
-              <Dashboard transactions={transactions} />
+              {activeTab === 'dashboard' ? (
+                <>
+                  <div className="flex items-center gap-2 mb-4">
+                    <BarChart3 className="text-indigo-600" />
+                    <h2 className="text-2xl font-bold text-slate-800">Panoramica Finanziaria</h2>
+                  </div>
+                  <Dashboard transactions={transactions} />
+                </>
+              ) : (
+                <ProjectDashboard transactions={transactions} />
+              )}
            </div>
            
            <div className="space-y-6">
-              <AIAdvisor kpis={kpis} topCosts={topCosts} />
+              {/* AI Advisor now takes full transactions for Chat Context */}
+              <AIAdvisor kpis={kpis} transactions={transactions} />
               
               {/* Mini List of Recent Transactions */}
               <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                 <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
                   <TrendingUp size={16} />
-                  Ultime Transazioni
+                  Ultimi Movimenti
                 </h3>
                 <div className="space-y-3">
                   {transactions.slice(-5).reverse().map(t => (
                     <div key={t.id} className="flex justify-between items-center text-sm pb-2 border-b border-slate-50 last:border-0">
-                      <div>
-                        <div className="font-medium text-slate-700">{t.description}</div>
-                        <div className="text-xs text-slate-400">{new Date(t.date).toLocaleDateString('it-IT')}</div>
+                      <div className="flex-1 min-w-0 pr-2">
+                        <div className="font-medium text-slate-700 truncate">{t.description}</div>
+                        <div className="flex justify-between items-center mt-1">
+                             <div className="text-xs text-slate-400">{new Date(t.date).toLocaleDateString('it-IT')}</div>
+                             {t.project && <div className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 truncate max-w-[80px]">{t.project}</div>}
+                        </div>
                       </div>
-                      <div className={`font-mono font-medium ${t.type === TransactionType.REVENUE ? 'text-emerald-600' : 'text-slate-600'}`}>
+                      <div className={`font-mono font-medium whitespace-nowrap ${t.type === TransactionType.REVENUE ? 'text-emerald-600' : 'text-slate-600'}`}>
                         {t.type === TransactionType.REVENUE ? '+' : '-'}€{t.amount.toLocaleString()}
                       </div>
                     </div>
@@ -113,10 +149,17 @@ const App: React.FC = () => {
              <Wallet className="text-indigo-600" />
              <h2 className="text-2xl font-bold text-slate-800">Gestione Movimenti</h2>
            </div>
-           <TransactionForm onAddTransaction={addTransaction} onBulkUpload={handleBulkUpload} />
+           <TransactionForm 
+              onAddTransaction={addTransaction} 
+              onBulkUpload={handleBulkUpload} 
+              existingProjects={existingProjects} 
+           />
         </div>
 
       </main>
+
+      {/* Floating AI Assistant - Always available */}
+      <AIChatAssistant transactions={transactions} kpis={kpis} />
     </div>
   );
 };
