@@ -3,15 +3,57 @@ import { FinancialKPIs, Transaction, Category, ProjectBudget } from "../types";
 import { formatCurrency } from "../utils/calculations";
 import { CATEGORY_LABELS } from "../constants";
 
+// Helper to get API Key from Environment or LocalStorage
+const getApiKey = (): string | null => {
+  // 1. Check process.env (for local dev .env files)
+  if (process.env.API_KEY) return process.env.API_KEY;
+  
+  // 2. Check LocalStorage (user entered via UI)
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem('gemini_api_key');
+    if (stored && stored.trim().length > 0) return stored;
+  }
+  return null;
+};
+
+// --- MOCK SERVICES FOR DEMO MODE ---
+// Used when no API Key is available to prevent crashes and show UI capabilities
+
+class MockChatSession {
+  async sendMessage(params: { message: string }) {
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Fake delay
+    
+    const lowerMsg = params.message.toLowerCase();
+    let responseText = "MODALITÀ DEMO (Senza API Key): ";
+
+    if (lowerMsg.includes('consiglio') || lowerMsg.includes('analisi')) {
+      responseText += "Dai dati attuali, il margine operativo è positivo. Consiglio di tenere sotto controllo i costi diretti dei cantieri nel prossimo trimestre per massimizzare l'utile.";
+    } else if (lowerMsg.includes('fatturato') || lowerMsg.includes('ricavi')) {
+      responseText += "Il fatturato è in linea con le aspettative, ma potremmo migliorare la riscossione dei crediti.";
+    } else if (lowerMsg.includes('ciao')) {
+      responseText += "Ciao! Sono il tuo assistente virtuale simulato. Inserisci una API Key valida nelle impostazioni per sbloccare la mia vera intelligenza.";
+    } else {
+      responseText += "Ho ricevuto la tua domanda. Poiché sono in modalità demo, non posso analizzare i dati in tempo reale, ma l'interfaccia funziona correttamente!";
+    }
+
+    return { text: responseText };
+  }
+}
+
+// -----------------------------------
+
 export const getFinancialAdvice = async (
   kpis: FinancialKPIs,
   topCosts: { name: string; value: number }[]
 ): Promise<string> => {
-  if (!process.env.API_KEY) {
-    return "API Key non configurata. Impossibile contattare l'advisor AI.";
+  const apiKey = getApiKey();
+  
+  if (!apiKey) {
+    // Return Mock Advice
+    return "💡 MODALITÀ DEMO: L'azienda mostra un buon EBITDA. Consiglio strategico simulato: ridurre le spese generali del 5% e monitorare i costi dei materiali per il Cantiere Campana.";
   }
 
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey });
 
   const prompt = `
     Agisci come un CFO (Chief Financial Officer) esperto per la società "Baccano & Partners SRLS" di Roma.
@@ -42,7 +84,7 @@ export const getFinancialAdvice = async (
     return response.text || "Nessun consiglio generato.";
   } catch (error) {
     console.error("Gemini Error:", error);
-    return "Si è verificato un errore durante l'analisi dei dati.";
+    return "Errore API: Verifica la validità della tua chiave nelle impostazioni.";
   }
 };
 
@@ -50,10 +92,15 @@ export const createFinancialChat = (
   kpis: FinancialKPIs,
   transactions: Transaction[],
   budgets?: ProjectBudget[]
-): Chat | null => {
-  if (!process.env.API_KEY) return null;
+): Chat | any => { // Return type any to allow MockChatSession
+  const apiKey = getApiKey();
+  
+  if (!apiKey) {
+    console.warn("No API Key found, using Mock Chat Session");
+    return new MockChatSession();
+  }
 
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey });
 
   // Format data for the AI Context - Including Project Names
   const transactionsList = transactions

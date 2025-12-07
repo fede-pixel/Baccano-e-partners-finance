@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { LayoutDashboard, Wallet, TrendingUp, Building2, BarChart3, Target, ArrowDownUp, CalendarDays } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { LayoutDashboard, Wallet, TrendingUp, Building2, BarChart3, Target, ArrowDownUp, CalendarDays, Settings, X, Save } from 'lucide-react';
 import TransactionForm from './components/TransactionForm';
 import Dashboard from './components/Dashboard';
 import ProjectDashboard from './components/ProjectDashboard';
@@ -16,6 +16,22 @@ const App: React.FC = () => {
   
   // Date Filter State
   const [timeRange, setTimeRange] = useState<'ALL' | 'THIS_YEAR' | 'LAST_YEAR' | 'THIS_MONTH' | 'LAST_MONTH'>('ALL');
+
+  // Settings / API Key State
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [apiKey, setApiKey] = useState('');
+
+  useEffect(() => {
+    const storedKey = localStorage.getItem('gemini_api_key');
+    if (storedKey) setApiKey(storedKey);
+  }, []);
+
+  const handleSaveApiKey = () => {
+    localStorage.setItem('gemini_api_key', apiKey);
+    setIsSettingsOpen(false);
+    // Force reload to ensure services pick up new key
+    window.location.reload(); 
+  };
 
   // Initial Sample Data
   const [transactions, setTransactions] = useState<Transaction[]>([
@@ -170,6 +186,15 @@ const App: React.FC = () => {
                     <span className="hidden sm:inline">Movimenti</span>
                 </button>
             </div>
+
+            {/* Settings Button */}
+            <button 
+                onClick={() => setIsSettingsOpen(true)}
+                className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                title="Impostazioni API"
+            >
+                <Settings size={20} />
+            </button>
           </div>
         </div>
       </header>
@@ -204,7 +229,7 @@ const App: React.FC = () => {
               )}
               {activeTab === 'budget' && (
                   <BudgetManager 
-                    transactions={transactions} // Budget usually compares against ALL time, but users might prefer filtered? Standard is All time for project. Keeping ALL for now to compare vs total budget.
+                    transactions={transactions} 
                     budgets={budgets} 
                     onUpdateBudget={handleUpdateBudget}
                     existingProjects={existingProjects} 
@@ -212,7 +237,7 @@ const App: React.FC = () => {
               )}
               {activeTab === 'transactions' && (
                 <TransactionList 
-                    transactions={filteredTransactions} // Filter list too
+                    transactions={filteredTransactions} 
                     onDelete={deleteTransaction}
                     onUpdate={updateTransaction}
                     existingProjects={existingProjects}
@@ -268,6 +293,58 @@ const App: React.FC = () => {
 
       {/* Floating AI Assistant - Always available */}
       <AIChatAssistant transactions={filteredTransactions} kpis={kpis} budgets={budgets} />
+
+      {/* API Key Settings Modal */}
+      {isSettingsOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-[100] backdrop-blur-sm">
+           <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md animate-in fade-in zoom-in duration-200">
+              <div className="flex justify-between items-center mb-4">
+                 <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <Settings className="text-indigo-600" />
+                    Configurazione AI
+                 </h3>
+                 <button onClick={() => setIsSettingsOpen(false)} className="text-slate-400 hover:text-slate-600">
+                    <X size={20} />
+                 </button>
+              </div>
+              
+              <div className="mb-6">
+                 <p className="text-sm text-slate-600 mb-4">
+                    Per abilitare l'intelligenza artificiale reale, inserisci la tua API Key di Google Gemini.
+                    Se lasci il campo vuoto, l'app funzionerà in <strong>Modalità Demo</strong> (risposte simulate).
+                 </p>
+                 
+                 <label className="block text-xs font-medium text-slate-500 mb-1">Google Gemini API Key</label>
+                 <input 
+                    type="password" 
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder="AIzaSy..."
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-mono"
+                 />
+                 <div className="mt-2 text-xs text-slate-400">
+                    La chiave viene salvata solo nel tuo browser.
+                 </div>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                 <button 
+                    onClick={() => setIsSettingsOpen(false)}
+                    className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg"
+                 >
+                    Annulla
+                 </button>
+                 <button 
+                    onClick={handleSaveApiKey}
+                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg flex items-center gap-2"
+                 >
+                    <Save size={16} />
+                    Salva Configurazione
+                 </button>
+              </div>
+           </div>
+        </div>
+      )}
     </div>
   );
 };
