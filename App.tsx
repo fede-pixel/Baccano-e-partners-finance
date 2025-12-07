@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { LayoutDashboard, Wallet, TrendingUp, Building2, BarChart3, Target, ArrowDownUp, CalendarDays, Settings, X, Save } from 'lucide-react';
+import { LayoutDashboard, Wallet, TrendingUp, Building2, BarChart3, Target, ArrowDownUp, CalendarDays, Settings, X, Save, RotateCcw, Trash } from 'lucide-react';
 import TransactionForm from './components/TransactionForm';
 import Dashboard from './components/Dashboard';
 import ProjectDashboard from './components/ProjectDashboard';
@@ -9,6 +9,33 @@ import AIAdvisor from './components/AIAdvisor';
 import AIChatAssistant from './components/AIChatAssistant';
 import { Transaction, Category, TransactionType, ProjectBudget } from './types';
 import { calculateKPIs } from './utils/calculations';
+
+// --- INITIAL SAMPLE DATA (Used only on first load or reset) ---
+const INITIAL_TRANSACTIONS: Transaction[] = [
+  // Claudio Campana
+  { id: '1', date: '2023-10-15', description: 'Ricavi Commessa Claudio Campana', amount: 26650, type: TransactionType.REVENUE, category: Category.OTHER, project: 'Cantiere Campana' },
+  { id: '2', date: '2023-10-18', description: 'Costi Cantiere Claudio Campana', amount: 21150, type: TransactionType.COST, category: Category.CONSTRUCTION, project: 'Cantiere Campana' },
+  
+  // Stefano Luogo
+  { id: '3', date: '2023-11-05', description: 'Ricavi Commessa Stefano Luogo', amount: 8000, type: TransactionType.REVENUE, category: Category.OTHER, project: 'Cantiere Luogo' },
+  
+  // Angelo & Chiara
+  { id: '4', date: '2023-11-20', description: 'Ricavi Commessa Angelo & Chiara', amount: 7000, type: TransactionType.REVENUE, category: Category.OTHER, project: 'Ristrutturazione Angelo & Chiara' },
+  { id: '5', date: '2023-11-25', description: 'Costi Materiali Angelo & Chiara', amount: 1100, type: TransactionType.COST, category: Category.CONSTRUCTION, project: 'Ristrutturazione Angelo & Chiara' },
+  
+  // Silvia
+  { id: '6', date: '2023-12-10', description: 'Ricavi Commessa Silvia', amount: 30500, type: TransactionType.REVENUE, category: Category.OTHER, project: 'Progetto Silvia' },
+  { id: '7', date: '2023-12-15', description: 'Costi Ristrutturazione Silvia', amount: 14895, type: TransactionType.COST, category: Category.CONSTRUCTION, project: 'Progetto Silvia' },
+
+  // Architetti Esterni (Spesa Generale o specifica)
+  { id: '8', date: '2023-12-20', description: 'Costi Architetti Esterni', amount: 2000, type: TransactionType.COST, category: Category.HR, project: 'Spese Generali' },
+];
+
+const INITIAL_BUDGETS: ProjectBudget[] = [
+  { projectName: 'Cantiere Campana', budgetRevenue: 28000, budgetCost: 20000 },
+  { projectName: 'Cantiere Luogo', budgetRevenue: 12000, budgetCost: 8000 },
+  { projectName: 'Progetto Silvia', budgetRevenue: 32000, budgetCost: 18000 }
+];
 
 const App: React.FC = () => {
   // Navigation State
@@ -21,45 +48,61 @@ const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [apiKey, setApiKey] = useState('');
 
+  // --- STATE INITIALIZATION WITH PERSISTENCE ---
+
+  // Transactions State
+  const [transactions, setTransactions] = useState<Transaction[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('baccano_transactions');
+      return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
+    }
+    return INITIAL_TRANSACTIONS;
+  });
+
+  // Budgets State
+  const [budgets, setBudgets] = useState<ProjectBudget[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('baccano_budgets');
+      return saved ? JSON.parse(saved) : INITIAL_BUDGETS;
+    }
+    return INITIAL_BUDGETS;
+  });
+
+  // --- PERSISTENCE EFFECTS ---
+
+  // Load API Key
   useEffect(() => {
     const storedKey = localStorage.getItem('gemini_api_key');
     if (storedKey) setApiKey(storedKey);
   }, []);
 
+  // Save Transactions on Change
+  useEffect(() => {
+    localStorage.setItem('baccano_transactions', JSON.stringify(transactions));
+  }, [transactions]);
+
+  // Save Budgets on Change
+  useEffect(() => {
+    localStorage.setItem('baccano_budgets', JSON.stringify(budgets));
+  }, [budgets]);
+
+
+  // --- HANDLERS ---
+
   const handleSaveApiKey = () => {
     localStorage.setItem('gemini_api_key', apiKey);
     setIsSettingsOpen(false);
-    // Force reload to ensure services pick up new key
     window.location.reload(); 
   };
 
-  // Initial Sample Data
-  const [transactions, setTransactions] = useState<Transaction[]>([
-    // Claudio Campana
-    { id: '1', date: '2023-10-15', description: 'Ricavi Commessa Claudio Campana', amount: 26650, type: TransactionType.REVENUE, category: Category.OTHER, project: 'Cantiere Campana' },
-    { id: '2', date: '2023-10-18', description: 'Costi Cantiere Claudio Campana', amount: 21150, type: TransactionType.COST, category: Category.CONSTRUCTION, project: 'Cantiere Campana' },
-    
-    // Stefano Luogo
-    { id: '3', date: '2023-11-05', description: 'Ricavi Commessa Stefano Luogo', amount: 8000, type: TransactionType.REVENUE, category: Category.OTHER, project: 'Cantiere Luogo' },
-    
-    // Angelo & Chiara
-    { id: '4', date: '2023-11-20', description: 'Ricavi Commessa Angelo & Chiara', amount: 7000, type: TransactionType.REVENUE, category: Category.OTHER, project: 'Ristrutturazione Angelo & Chiara' },
-    { id: '5', date: '2023-11-25', description: 'Costi Materiali Angelo & Chiara', amount: 1100, type: TransactionType.COST, category: Category.CONSTRUCTION, project: 'Ristrutturazione Angelo & Chiara' },
-    
-    // Silvia
-    { id: '6', date: '2023-12-10', description: 'Ricavi Commessa Silvia', amount: 30500, type: TransactionType.REVENUE, category: Category.OTHER, project: 'Progetto Silvia' },
-    { id: '7', date: '2023-12-15', description: 'Costi Ristrutturazione Silvia', amount: 14895, type: TransactionType.COST, category: Category.CONSTRUCTION, project: 'Progetto Silvia' },
-
-    // Architetti Esterni (Spesa Generale o specifica)
-    { id: '8', date: '2023-12-20', description: 'Costi Architetti Esterni', amount: 2000, type: TransactionType.COST, category: Category.HR, project: 'Spese Generali' },
-  ]);
-
-  // Sample Budgets
-  const [budgets, setBudgets] = useState<ProjectBudget[]>([
-    { projectName: 'Cantiere Campana', budgetRevenue: 28000, budgetCost: 20000 },
-    { projectName: 'Cantiere Luogo', budgetRevenue: 12000, budgetCost: 8000 },
-    { projectName: 'Progetto Silvia', budgetRevenue: 32000, budgetCost: 18000 }
-  ]);
+  const handleResetData = () => {
+    if (window.confirm('ATTENZIONE: Sei sicuro di voler cancellare tutti i dati inseriti e ripristinare i dati di esempio? Questa azione è irreversibile.')) {
+      setTransactions(INITIAL_TRANSACTIONS);
+      setBudgets(INITIAL_BUDGETS);
+      // LocalStorage updates automatically via useEffect
+      setIsSettingsOpen(false);
+    }
+  };
 
   const addTransaction = (t: Transaction) => {
     setTransactions(prev => [...prev, t]);
@@ -103,11 +146,10 @@ const App: React.FC = () => {
       const tMonth = tDate.getMonth();
 
       if (timeRange === 'THIS_YEAR') return tYear === currentYear;
-      if (timeRange === 'LAST_YEAR') return tYear === currentYear - 1; // e.g. 2023 if now is 2024
+      if (timeRange === 'LAST_YEAR') return tYear === currentYear - 1; 
       
       if (timeRange === 'THIS_MONTH') return tYear === currentYear && tMonth === currentMonth;
       if (timeRange === 'LAST_MONTH') {
-        // Handle Jan -> Dec transition
         const targetMonth = currentMonth === 0 ? 11 : currentMonth - 1;
         const targetYear = currentMonth === 0 ? currentYear - 1 : currentYear;
         return tYear === targetYear && tMonth === targetMonth;
@@ -116,17 +158,15 @@ const App: React.FC = () => {
     });
   }, [transactions, timeRange]);
 
-  // Extract unique projects for suggestions
+  // Extract unique projects
   const existingProjects = useMemo(() => {
     const projects = new Set(transactions.map(t => t.project).filter(p => !!p));
     return Array.from(projects) as string[];
   }, [transactions]);
 
-  // Calculate KPIs on FILTERED transactions for Dashboard
+  // Calculate KPIs
   const kpis = useMemo(() => calculateKPIs(filteredTransactions), [filteredTransactions]);
 
-  // For AI context, we might want full history or filtered. Filtered is better for specific questions, but full is better for general advice.
-  // Let's pass filtered to AI so it sees what user sees.
   
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-20">
@@ -191,7 +231,7 @@ const App: React.FC = () => {
             <button 
                 onClick={() => setIsSettingsOpen(true)}
                 className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                title="Impostazioni API"
+                title="Impostazioni"
             >
                 <Settings size={20} />
             </button>
@@ -301,45 +341,60 @@ const App: React.FC = () => {
               <div className="flex justify-between items-center mb-4">
                  <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                     <Settings className="text-indigo-600" />
-                    Configurazione AI
+                    Configurazione
                  </h3>
                  <button onClick={() => setIsSettingsOpen(false)} className="text-slate-400 hover:text-slate-600">
                     <X size={20} />
                  </button>
               </div>
               
+              {/* API Key Section */}
               <div className="mb-6">
-                 <p className="text-sm text-slate-600 mb-4">
-                    Per abilitare l'intelligenza artificiale reale, inserisci la tua API Key di Google Gemini.
-                    Se lasci il campo vuoto, l'app funzionerà in <strong>Modalità Demo</strong> (risposte simulate).
-                 </p>
-                 
                  <label className="block text-xs font-medium text-slate-500 mb-1">Google Gemini API Key</label>
-                 <input 
-                    type="password" 
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    placeholder="AIzaSy..."
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-mono"
-                 />
+                 <div className="relative">
+                    <input 
+                        type="password" 
+                        value={apiKey}
+                        onChange={(e) => setApiKey(e.target.value)}
+                        placeholder="Lascia vuoto per Modalità Demo"
+                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-mono"
+                    />
+                 </div>
                  <div className="mt-2 text-xs text-slate-400">
-                    La chiave viene salvata solo nel tuo browser.
+                    La chiave viene salvata localmente nel browser.
                  </div>
               </div>
 
-              <div className="flex justify-end gap-3">
+              {/* Data Management Section */}
+              <div className="mb-6 pt-6 border-t border-slate-100">
+                 <h4 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-2">
+                    <RotateCcw size={14} /> Gestione Dati
+                 </h4>
+                 <p className="text-xs text-slate-500 mb-3">
+                    Hai modificato i dati. L'app li salva automaticamente. Se vuoi ricominciare da zero:
+                 </p>
+                 <button 
+                    onClick={handleResetData}
+                    className="w-full py-2 px-4 border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+                 >
+                    <Trash size={16} />
+                    Reset Dati di Fabbrica
+                 </button>
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6">
                  <button 
                     onClick={() => setIsSettingsOpen(false)}
                     className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg"
                  >
-                    Annulla
+                    Chiudi
                  </button>
                  <button 
                     onClick={handleSaveApiKey}
                     className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg flex items-center gap-2"
                  >
                     <Save size={16} />
-                    Salva Configurazione
+                    Salva Chiave
                  </button>
               </div>
            </div>
