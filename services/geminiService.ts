@@ -5,8 +5,14 @@ import { CATEGORY_LABELS } from "../constants";
 
 // Helper to get API Key from Environment or LocalStorage
 const getApiKey = (): string | null => {
-  // 1. Check process.env (for local dev .env files)
-  if (process.env.API_KEY) return process.env.API_KEY;
+  // 1. Check process.env (safely for browser environments)
+  try {
+    if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+      return process.env.API_KEY;
+    }
+  } catch (e) {
+    // Ignore error if process is not defined
+  }
   
   // 2. Check LocalStorage (user entered via UI)
   if (typeof window !== 'undefined') {
